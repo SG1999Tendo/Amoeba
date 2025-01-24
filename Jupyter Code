@@ -1,0 +1,8 @@
+!pip install roboflow
+
+from roboflow import Roboflow
+rf = Roboflow(api_key="5ZFNa1IsuPYuL0ifmeKX")
+project = rf.workspace("osteo-cluav").project("amoeba-k9oi0")
+version = project.version(3)
+dataset = version.download("yolov7")
+                
