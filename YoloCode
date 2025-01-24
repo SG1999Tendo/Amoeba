@@ -1,0 +1,76 @@
+import os
+import yaml
+import subprocess
+
+# Step 1: Define paths and ensure dependencies
+project_dir = os.getcwd()  # Current directory
+
+data_dir = "/mnt/data/Amoeba_yolov7_dataset"
+yaml_path = os.path.join(data_dir, "data.yaml")
+yolov7_repo = os.path.join(project_dir, "yolov7")
+
+# Step 2: Clone YOLOv7 repository if not already present
+if not os.path.exists(yolov7_repo):
+    print("Cloning YOLOv7 repository...")
+    subprocess.run(["git", "clone", "https://github.com/WongKinYiu/yolov7.git"], check=True)
+
+# Step 3: Install required dependencies
+print("Installing dependencies...")
+subprocess.run(["pip", "install", "-r", os.path.join(yolov7_repo, "requirements.txt")], check=True)
+
+# Step 4: Verify the data.yaml file
+if not os.path.exists(yaml_path):
+    raise FileNotFoundError(f"data.yaml not found in {yaml_path}")
+
+with open(yaml_path, 'r') as f:
+    data_config = yaml.safe_load(f)
+
+print("Data configuration loaded:")
+print(data_config)
+
+# Step 5: Training the YOLOv7 model
+weights_path = "yolov7_training.pt"  # Path to save pretrained weights
+img_size = 640  # Image size
+batch_size = 16  # Batch size
+epochs = 100  # Number of training epochs
+
+def train_yolov7():
+    print("Starting YOLOv7 training...")
+    subprocess.run([
+        "python", os.path.join(yolov7_repo, "train.py"),
+        "--img", str(img_size),
+        "--batch", str(batch_size),
+        "--epochs", str(epochs),
+        "--data", yaml_path,
+        "--cfg", os.path.join(yolov7_repo, "cfg/training/yolov7.yaml"),
+        "--weights", "yolov7.pt",  # Use the official pretrained weights as a starting point
+        "--name", "custom_yolov7"  # Name of the training run
+    ], check=True)
+
+# Step 6: Running inference
+def run_inference(image_path, output_dir):
+    print("Running inference...")
+    os.makedirs(output_dir, exist_ok=True)
+    subprocess.run([
+        "python", os.path.join(yolov7_repo, "detect.py"),
+        "--weights", os.path.join(yolov7_repo, "runs/train/custom_yolov7/weights/best.pt"),
+        "--source", image_path,
+        "--img-size", str(img_size),
+        "--conf-thres", "0.25",  # Confidence threshold
+        "--save-txt",  # Save detections to .txt files
+        "--save-conf",  # Save confidences
+        "--project", output_dir,  # Directory for output
+        "--name", "inference_results",  # Name of the output folder
+        "--exist-ok"  # Overwrite existing results
+    ], check=True)
+
+if __name__ == "__main__":
+    # Step 5: Train the model
+    train_yolov7()
+
+    # Step 6: Perform inference (example)
+    test_image = os.path.join(data_dir, "test/images")  # Path to test images
+    output_directory = os.path.join(project_dir, "inference_output")
+    run_inference(test_image, output_directory)
+
+    print("Training and inference complete!")
